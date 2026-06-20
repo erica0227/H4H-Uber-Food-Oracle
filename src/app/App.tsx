@@ -579,6 +579,79 @@ function FriendsPage({ onBack }: { onBack: () => void }) {
 
 // ─── Kitchen ─────────────────────────────────────────────────────────────────
 
+const KITCHEN_CATEGORIES: Record<
+  KitchenTab,
+  { label: string; desc: string; ids: string[] }[]
+> = {
+  main: [
+    { label: "Protein", desc: "Pick one or more", ids: ["chicken", "beef", "salmon", "tofu", "eggs"] },
+    { label: "Vegetables", desc: "Add as many as you like", ids: ["broccoli", "tomato", "garlic", "onion"] },
+    { label: "Carbs & Sides", desc: "Add some substance", ids: ["rice", "pasta", "potato"] },
+  ],
+  snack: [
+    { label: "Crunchy", desc: "Pick one or more", ids: ["nuts", "crackers", "popcorn"] },
+    { label: "Fresh & Dairy", desc: "Light and refreshing", ids: ["apple", "banana", "yogurt"] },
+    { label: "Indulgent", desc: "A little treat", ids: ["cheese", "chocolate"] },
+  ],
+  drink: [
+    { label: "Hot Drinks", desc: "Something warm", ids: ["coffee", "tea"] },
+    { label: "Cold & Fresh", desc: "Refreshing picks", ids: ["juice", "smoothie", "soda", "water", "boba"] },
+    { label: "Other", desc: "Wind down a little", ids: ["wine"] },
+  ],
+};
+
+const KITCHEN_TABS: { id: KitchenTab; label: string; icon: React.ReactNode }[] = [
+  { id: "main", label: "Main Kitchen", icon: <ChefHat size={15} /> },
+  { id: "snack", label: "Snack", icon: <Cookie size={15} /> },
+  { id: "drink", label: "Drink", icon: <Coffee size={15} /> },
+];
+
+function BowlIllustration({ active }: { active: boolean }) {
+  return (
+    <svg viewBox="0 0 320 230" className="w-full" style={{ maxWidth: 320 }}>
+      {/* Soft drop shadow */}
+      <ellipse cx="160" cy="222" rx="110" ry="8" fill="rgba(0,0,0,0.06)" />
+      {/* Bowl body fill */}
+      <path
+        d="M 32 90 C 32 175 88 212 160 214 C 232 212 288 175 288 90 Z"
+        fill="#f7f5ef"
+      />
+      {/* Bowl body stroke */}
+      <path
+        d="M 32 90 C 32 175 88 212 160 214 C 232 212 288 175 288 90"
+        fill="none"
+        stroke="#ddd8cc"
+        strokeWidth="2"
+      />
+      {/* Rim ellipse fill (sits on top of body) */}
+      <ellipse cx="160" cy="90" rx="128" ry="38" fill="#f7f5ef" />
+      {/* Rim ellipse stroke */}
+      <ellipse
+        cx="160"
+        cy="90"
+        rx="128"
+        ry="38"
+        fill="none"
+        stroke="#ddd8cc"
+        strokeWidth="2"
+      />
+      {/* Inner rim highlight */}
+      <ellipse cx="160" cy="90" rx="116" ry="30" fill="#faf9f5" />
+      {/* Green heart */}
+      <text
+        x="160"
+        y="172"
+        textAnchor="middle"
+        fontSize="26"
+        fill={active ? "#06c167" : "#c8e6d4"}
+        style={{ transition: "fill 0.3s" }}
+      >
+        ♥
+      </text>
+    </svg>
+  );
+}
+
 function KitchenSection({
   onConfirm,
   initialPlate = [],
@@ -588,31 +661,8 @@ function KitchenSection({
 }) {
   const [activeKitchen, setActiveKitchen] = useState<KitchenTab>("main");
   const [plate, setPlate] = useState<Ingredient[]>(initialPlate);
-  const [dragOver, setDragOver] = useState<"plate" | "trash" | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const [dragging, setDragging] = useState<string | null>(null);
-
-  // Extra display ingredients for the bowl-builder shelves.
-  // These still behave like normal ingredients when selected.
-  const EXTRA_BOWL_OPTIONS: Ingredient[] = [
-    { id: "shrimp", name: "Shrimp", emoji: "🍤", kitchen: "main" },
-    { id: "chili-oil", name: "Chili Oil", emoji: "🌶️", kitchen: "main" },
-    { id: "sesame-sauce", name: "Sesame", emoji: "🥣", kitchen: "main" },
-    { id: "soy-glaze", name: "Soy Glaze", emoji: "🍶", kitchen: "main" },
-    { id: "miso-sauce", name: "Miso", emoji: "🍲", kitchen: "main" },
-    { id: "greens", name: "Greens", emoji: "🥬", kitchen: "main" },
-    { id: "corn", name: "Corn", emoji: "🌽", kitchen: "main" },
-    { id: "carrots", name: "Carrots", emoji: "🥕", kitchen: "main" },
-    { id: "mushrooms", name: "Mushrooms", emoji: "🍄", kitchen: "main" },
-    { id: "cabbage", name: "Cabbage", emoji: "🥗", kitchen: "main" },
-    { id: "edamame", name: "Edamame", emoji: "🫛", kitchen: "main" },
-    { id: "broth", name: "Broth", emoji: "🍜", kitchen: "main" },
-  ];
-
-  const allOptions = [...INGREDIENTS, ...EXTRA_BOWL_OPTIONS];
-  const byId = (ids: string[]) =>
-    ids
-      .map((id) => allOptions.find((ingredient) => ingredient.id === id))
-      .filter((ingredient): ingredient is Ingredient => Boolean(ingredient));
 
   const addToPlate = (ingredient: Ingredient) => {
     if (!plate.find((p) => p.id === ingredient.id)) {
@@ -623,344 +673,236 @@ function KitchenSection({
   const removeFromPlate = (id: string) =>
     setPlate((prev) => prev.filter((p) => p.id !== id));
 
-  const onDragStart = (
-    e: React.DragEvent,
-    id: string,
-    source: "panel" | "plate"
-  ) => {
+  const onDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData("id", id);
-    e.dataTransfer.setData("source", source);
     setDragging(id);
   };
 
   const onDragEnd = () => setDragging(null);
 
-  const onPlateDrop = (e: React.DragEvent) => {
+  const onBowlDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setDragOver(null);
+    setDragOver(false);
     const id = e.dataTransfer.getData("id");
-    const source = e.dataTransfer.getData("source");
-    if (source === "panel") {
-      const ing = allOptions.find((i) => i.id === id);
-      if (ing) addToPlate(ing);
-    }
+    const ing = INGREDIENTS.find((i) => i.id === id);
+    if (ing) addToPlate(ing);
   };
 
-  const onTrashDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(null);
-    const id = e.dataTransfer.getData("id");
-    const source = e.dataTransfer.getData("source");
-    if (source === "plate") removeFromPlate(id);
-  };
+  const categories = KITCHEN_CATEGORIES[activeKitchen];
 
-  const TABS: { id: KitchenTab; label: string; icon: React.ReactNode }[] = [
-    { id: "main", label: "Change kitchen", icon: <ChefHat size={20} /> },
-    { id: "drink", label: "Drink", icon: <Coffee size={20} /> },
-    { id: "snack", label: "Snack", icon: <Cookie size={20} /> },
-  ];
-
-  const shelvesByKitchen: Record<
-    KitchenTab,
-    { title: string; subtitle: string; icon: string; items: Ingredient[] }[]
-  > = {
-    main: [
-      {
-        title: "Protein",
-        subtitle: "Pick one or more.",
-        icon: "🥢",
-        items: byId(["chicken", "tofu", "shrimp", "beef", "salmon"]),
-      },
-      {
-        title: "Vegetables",
-        subtitle: "Add as many as you like.",
-        icon: "🌿",
-        items: byId(["greens", "mushrooms", "cabbage", "edamame", "corn", "carrots"]),
-      },
-      {
-        title: "Spice & Sauce",
-        subtitle: "Add some heat and flavor.",
-        icon: "🌶️",
-        items: byId(["chili-oil", "sesame-sauce", "soy-glaze", "miso-sauce", "garlic"]),
-      },
-      {
-        title: "Base",
-        subtitle: "Choose liquid or dry.",
-        icon: "🥣",
-        items: byId(["broth", "rice", "pasta", "greens"]),
-      },
-    ],
-    drink: [
-      {
-        title: "Drink Kitchen",
-        subtitle: "Pick a drink for the side.",
-        icon: "🥤",
-        items: byId(["coffee", "tea", "juice", "smoothie", "soda", "water", "boba"]),
-      },
-    ],
-    snack: [
-      {
-        title: "Snack Kitchen",
-        subtitle: "Add something small on the side.",
-        icon: "🍪",
-        items: byId(["nuts", "cheese", "crackers", "apple", "banana", "yogurt", "popcorn", "chocolate"]),
-      },
-    ],
-  };
-
-  const shelves = shelvesByKitchen[activeKitchen];
-  const topShelf = shelves[0];
-  const lowerShelves = shelves.slice(1);
-
-  function IngredientTile({ ingredient }: { ingredient: Ingredient }) {
-    const onPlate = !!plate.find((p) => p.id === ingredient.id);
-
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        draggable={!onPlate}
-        onDragStart={(e) => !onPlate && onDragStart(e, ingredient.id, "panel")}
-        onDragEnd={onDragEnd}
-        onClick={() => addToPlate(ingredient)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") addToPlate(ingredient);
-        }}
-        className={`relative min-w-[104px] sm:min-w-[122px] h-[118px] rounded-2xl border bg-white px-3 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.07)] transition-all select-none ${
-          onPlate
-            ? "border-primary/40 bg-primary/5 opacity-60 cursor-default"
-            : "border-black/10 hover:border-primary/40 hover:-translate-y-0.5 cursor-grab active:cursor-grabbing"
-        }`}
-      >
-        {onPlate && (
-          <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-primary" />
-        )}
-        <span className="block text-4xl leading-none mb-3">{ingredient.emoji}</span>
-        <span className="block text-sm font-semibold text-foreground leading-tight">
-          {ingredient.name}
-        </span>
-      </div>
-    );
-  }
-
-  function ShelfSection({
-    title,
-    subtitle,
-    icon,
-    items,
-  }: {
-    title: string;
-    subtitle: string;
-    icon: string;
-    items: Ingredient[];
-  }) {
-    return (
-      <section className="rounded-[28px] bg-white/90 border border-black/5 shadow-[0_12px_34px_rgba(0,0,0,0.05)] px-4 py-4 overflow-hidden">
-        <div className="flex items-start justify-between gap-3 mb-1">
-          <div className="flex items-start gap-3">
-            <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-xl shrink-0">
-              {icon}
-            </div>
-            <div>
-              <h3
-                className="text-xl font-bold leading-tight"
-                style={{ fontFamily: "var(--font-family-display)" }}
-              >
-                {title}
-              </h3>
-              <p className="text-sm text-muted-foreground">{subtitle}</p>
-            </div>
-          </div>
-          <button className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
-            View all
-          </button>
-        </div>
-
-        <div className="relative mt-4">
-          {/* clean transparent shelf base */}
-          <div className="absolute inset-x-0 bottom-0 h-9 rounded-2xl bg-[#8B5E34]/10 border border-[#8B5E34]/15 shadow-[0_12px_26px_rgba(92,64,31,0.10)] backdrop-blur-sm" />
-          <div className="relative z-10 flex gap-3 overflow-x-auto px-1 pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {items.map((ingredient) => (
-              <IngredientTile key={ingredient.id} ingredient={ingredient} />
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
+  // Group plate items by kitchen for the right panel
+  const plateByKitchen = (["main", "snack", "drink"] as KitchenTab[])
+    .map((k) => ({
+      kitchen: k,
+      label: k === "main" ? "Main" : k === "snack" ? "Snacks" : "Drinks",
+      icon: k === "main" ? "🥘" : k === "snack" ? "🍿" : "🥤",
+      items: plate.filter((p) => p.kitchen === k),
+    }))
+    .filter((g) => g.items.length > 0);
 
   return (
-    <div className="min-h-screen bg-[#FBFAF7] text-foreground px-4 py-5">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="mx-auto max-w-md pb-28"
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <h2
-              className="text-4xl font-extrabold tracking-tight leading-none"
-              style={{ fontFamily: "var(--font-family-display)" }}
-            >
-              Build your bowl
-            </h2>
-            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-              Customize fresh ingredients just the way you like.
+    <div className="min-h-screen bg-background flex flex-col" style={{ fontFamily: "var(--font-family-sans)" }}>
+      {/* ── Header ── */}
+      <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 border-b border-border">
+        <div>
+          <h1 className="text-2xl font-bold leading-tight" style={{ fontFamily: "var(--font-family-display)" }}>
+            Build your plate
+          </h1>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            Customise fresh ingredients just the way you like
+          </p>
+        </div>
+        <motion.button
+          whileHover={{ scale: plate.length > 0 ? 1.03 : 1 }}
+          whileTap={{ scale: plate.length > 0 ? 0.97 : 1 }}
+          onClick={() => plate.length > 0 && onConfirm(plate)}
+          disabled={plate.length === 0}
+          className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            plate.length > 0
+              ? "bg-primary text-primary-foreground hover:opacity-90 shadow-md shadow-primary/20"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
+          }`}
+        >
+          Add Ingredients
+          {plate.length > 0 && <span className="text-xs opacity-80">→</span>}
+        </motion.button>
+      </div>
+
+      {/* ── Body: 3-col on lg, stacked on mobile ── */}
+      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_300px_220px] overflow-hidden">
+
+        {/* ── Left: Ingredient Categories ── */}
+        <div className="overflow-y-auto px-6 py-5 flex flex-col gap-7">
+          {categories.map((cat) => {
+            const catItems = cat.ids
+              .map((id) => INGREDIENTS.find((i) => i.id === id)!)
+              .filter(Boolean);
+            return (
+              <div key={cat.label}>
+                <div className="flex items-end justify-between mb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">{cat.label}</h3>
+                    <p className="text-xs text-muted-foreground">{cat.desc}</p>
+                  </div>
+                </div>
+                {/* Horizontal scroll row */}
+                <div
+                  className="flex gap-3 overflow-x-auto pb-1"
+                  style={{ scrollbarWidth: "none" }}
+                >
+                  {catItems.map((ing) => {
+                    const added = !!plate.find((p) => p.id === ing.id);
+                    return (
+                      <div
+                        key={ing.id}
+                        draggable={!added}
+                        onDragStart={(e) => !added && onDragStart(e, ing.id)}
+                        onDragEnd={onDragEnd}
+                        onClick={() => (added ? removeFromPlate(ing.id) : addToPlate(ing))}
+                        className={`relative flex-shrink-0 flex flex-col items-center justify-end gap-1.5 w-[78px] pt-3 pb-2.5 px-1 rounded-2xl border-2 select-none transition-all cursor-pointer ${
+                          added
+                            ? "border-primary bg-primary/6 shadow-sm shadow-primary/15"
+                            : "border-border bg-white hover:border-primary/40 hover:shadow-sm cursor-grab active:cursor-grabbing"
+                        } ${dragging === ing.id ? "opacity-40" : "opacity-100"}`}
+                      >
+                        <span className="text-[2rem] leading-none">{ing.emoji}</span>
+                        <span className="text-[11px] font-medium text-center leading-tight text-foreground w-full truncate px-0.5">
+                          {ing.name}
+                        </span>
+                        {added && (
+                          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center shadow-sm">
+                            <span className="text-[10px] font-bold leading-none">✓</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* ── Kitchen Switcher ── */}
+          <div className="mt-auto pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-widest mb-3">
+              Change kitchen
             </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-black/10 text-primary font-semibold shadow-sm">
-              <span>♡</span>
-              Save bowl
-            </button>
-            <button className="w-12 h-12 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20">
-              <ChefHat size={22} />
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {KITCHEN_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveKitchen(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                    activeKitchen === tab.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-white border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* First shelf */}
-        <ShelfSection {...topShelf} />
-
-        {/* Center bowl */}
+        {/* ── Center: Bowl drop zone ── */}
         <div
-          className={`relative my-6 rounded-[34px] border-2 border-dashed px-4 py-8 transition-all ${
-            dragOver === "plate"
-              ? "border-primary bg-primary/6 scale-[1.01]"
-              : "border-transparent bg-white/45"
+          className={`flex flex-col items-center justify-center py-8 px-4 transition-all duration-200 ${
+            dragOver ? "bg-primary/4" : "bg-white"
           }`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver("plate");
-          }}
-          onDragLeave={() => setDragOver(null)}
-          onDrop={onPlateDrop}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onBowlDrop}
         >
-          <div className="absolute left-10 top-1/2 text-primary/25 text-4xl select-none">‹</div>
-          <div className="absolute right-10 top-1/2 text-primary/25 text-4xl select-none">›</div>
-
-          <div className="relative mx-auto h-44 w-full max-w-[310px]">
-            <div className="absolute left-1/2 top-28 h-10 w-64 -translate-x-1/2 rounded-full bg-black/7 blur-sm" />
-            <div className="absolute left-1/2 top-3 z-20 h-28 w-72 -translate-x-1/2 rounded-[999px] border-[3px] border-primary bg-[#FFF2DE] shadow-[0_16px_32px_rgba(0,0,0,0.08)]" />
-            <div className="absolute left-1/2 top-[68px] z-10 h-24 w-60 -translate-x-1/2 rounded-b-[90px] border-x-[3px] border-b-[3px] border-primary bg-[#FFF8ED]" />
-            <div className="absolute left-1/2 top-[116px] z-30 -translate-x-1/2 text-3xl text-primary">
-              ♥
-            </div>
-
+          <div className="relative w-full max-w-[280px]">
+            <BowlIllustration active={plate.length > 0} />
+            {/* Items scattered in the bowl */}
             {plate.length > 0 && (
-              <div className="absolute left-1/2 top-8 z-30 flex max-w-[230px] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5">
-                {plate.slice(0, 8).map((ing) => (
-                  <span
-                    key={ing.id}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-xl shadow-sm border border-black/5"
-                  >
-                    {ing.emoji}
-                  </span>
+              <div
+                className="absolute inset-0 flex flex-wrap items-center justify-center gap-0.5 pt-6 pb-14 px-12 pointer-events-none"
+              >
+                {plate.slice(0, 12).map((ing) => (
+                  <span key={ing.id} className="text-xl leading-none">{ing.emoji}</span>
                 ))}
+                {plate.length > 12 && (
+                  <span className="text-xs text-muted-foreground font-medium">+{plate.length - 12}</span>
+                )}
               </div>
             )}
           </div>
+          <p className={`text-sm mt-3 transition-colors ${
+            dragOver ? "text-primary font-medium" : "text-muted-foreground"
+          }`}>
+            {plate.length === 0
+              ? dragOver ? "Drop to add" : "Start building ↑"
+              : dragOver
+              ? "Drop to add"
+              : `${plate.length} ingredient${plate.length > 1 ? "s" : ""} added`}
+          </p>
+        </div>
 
-          <div className="text-center -mt-2">
-            <p className="text-primary font-bold text-sm">
-              {plate.length === 0
-                ? "Start building ↗"
-                : `${plate.length} ingredient${plate.length > 1 ? "s" : ""} selected`}
-            </p>
-          </div>
+        {/* ── Right: Added items panel ── */}
+        <div className="border-t lg:border-t-0 lg:border-l border-border px-5 py-5 overflow-y-auto bg-white">
+          <h3 className="text-sm font-bold text-foreground mb-0.5">Your selections</h3>
+          <p className="text-xs text-muted-foreground mb-5">
+            {plate.length === 0 ? "Nothing added yet" : "Tap an item to remove it"}
+          </p>
 
-          {plate.length > 0 && (
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              {plate.map((ing) => (
-                <div
-                  key={ing.id}
-                  draggable
-                  onDragStart={(e) => onDragStart(e, ing.id, "plate")}
-                  onDragEnd={onDragEnd}
-                  className={`flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-semibold shadow-sm cursor-grab active:cursor-grabbing ${
-                    dragging === ing.id ? "opacity-40" : "opacity-100"
-                  }`}
-                >
-                  <span>{ing.emoji}</span>
-                  <span>{ing.name}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFromPlate(ing.id);
-                    }}
-                    className="ml-1 rounded-full p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <X size={12} />
-                  </button>
+          {plate.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-2">
+              <Utensils size={28} strokeWidth={1.5} />
+              <span className="text-xs">Your plate is empty</span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {plateByKitchen.map((group) => (
+                <div key={group.kitchen}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-sm">{group.icon}</span>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {group.label}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {group.items.map((ing) => (
+                      <div
+                        key={ing.id}
+                        className="flex items-center justify-between py-1.5 px-3 rounded-xl bg-card border border-border group hover:border-destructive/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{ing.emoji}</span>
+                          <span className="text-sm font-medium">{ing.name}</span>
+                        </div>
+                        <button
+                          onClick={() => removeFromPlate(ing.id)}
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
           )}
 
-          <div
-            className={`mx-auto mt-4 flex max-w-xs items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-2.5 text-xs font-semibold transition-all ${
-              dragOver === "trash"
-                ? "border-destructive bg-destructive/10 text-destructive"
-                : "border-black/10 bg-white/70 text-muted-foreground"
-            }`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver("trash");
-            }}
-            onDragLeave={() => setDragOver(null)}
-            onDrop={onTrashDrop}
-          >
-            <Trash2 size={14} />
-            Drag selected items here to remove
-          </div>
-        </div>
-
-        {/* Lower shelves */}
-        <div className="space-y-4">
-          {lowerShelves.map((section) => (
-            <ShelfSection key={section.title} {...section} />
-          ))}
-        </div>
-
-        {/* Kitchen / snack / drink switcher */}
-        <div className="mt-4 rounded-[26px] border border-black/5 bg-white/90 shadow-[0_10px_26px_rgba(0,0,0,0.05)] overflow-hidden grid grid-cols-3">
-          {TABS.map((tab, index) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveKitchen(tab.id)}
-              className={`flex items-center justify-center gap-2 px-2 py-4 text-xs sm:text-sm font-semibold transition-all ${
-                activeKitchen === tab.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-foreground hover:bg-secondary"
-              } ${index > 0 ? "border-l border-black/5" : ""}`}
+          {/* Trash drop zone */}
+          {plate.length > 0 && (
+            <div
+              className="mt-6 flex items-center gap-2 p-3 rounded-xl border-2 border-dashed border-border text-muted-foreground transition-all duration-200 hover:border-destructive/40 hover:text-destructive"
+              onDragOver={(e) => { e.preventDefault(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const id = e.dataTransfer.getData("id");
+                removeFromPlate(id);
+              }}
             >
-              {tab.icon}
-              <span className="truncate">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Sticky CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-40 bg-gradient-to-t from-[#FBFAF7] via-[#FBFAF7] to-transparent px-4 pb-4 pt-8">
-        <div className="mx-auto max-w-md">
-          <motion.button
-            whileHover={{ scale: plate.length > 0 ? 1.01 : 1 }}
-            whileTap={{ scale: plate.length > 0 ? 0.97 : 1 }}
-            onClick={() => plate.length > 0 && onConfirm(plate)}
-            disabled={plate.length === 0}
-            className={`w-full rounded-2xl py-4 text-lg font-extrabold transition-all ${
-              plate.length > 0
-                ? "bg-primary text-primary-foreground shadow-xl shadow-primary/25 hover:opacity-90"
-                : "bg-muted text-muted-foreground cursor-not-allowed"
-            }`}
-          >
-            {plate.length > 0
-              ? `Find my meal · ${plate.length} selected →`
-              : "Add ingredients →"}
-          </motion.button>
+              <Trash2 size={14} />
+              <span className="text-xs font-medium">Drop here to remove</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

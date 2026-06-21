@@ -109,7 +109,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-family-display: 'Fraunces', Georgia, serif;
+  --font-family-display: 'DM Sans', Georgia, serif;
   --font-family-sans: 'Outfit', system-ui, sans-serif;
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

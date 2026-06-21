@@ -487,9 +487,10 @@ const UCOOK_KEYS = [
 
 // our ingredient id -> Lenka's key (null = no equivalent on her side)
 const UCOOK_ING_MAP: Record<string, string | null> = {
-  chicken: "chicken", beef: "beef", salmon: "fish", tofu: "tofu",
-  pasta: "pasta", rice: "rice", eggs: "eggs", broccoli: "broccoli",
-  tomato: "tomato", garlic: "greens", onion: "greens", potato: "potato",
+  chicken: "chicken", beef: "beef", pork: "pork", salmon: "fish", tofu: "tofu",
+  pasta: "pasta", rice: "rice", noodles: "noodles", eggs: "eggs",
+  broccoli: "broccoli", tomato: "tomato", greens: "greens", bokchoi: "bak_choi",
+  salad: "salad", garlic: "greens", onion: "greens", potato: "potato",
   nuts: "nuts", cheese: "cheese", crackers: "crackers", apple: "apple",
   banana: "banana", yogurt: "yogurt", popcorn: "popcorn",
   chocolate: "chocolate", coffee: "coffee", tea: "tea", juice: "juice",
@@ -577,8 +578,10 @@ async function fetchUcookRecs(selected: Ingredient[]): Promise<Recommendation[]>
   });
   if (!res.ok) throw new Error(`Ucook ${res.status}`);
   const json = await res.json();
-  // main2 wraps results as { recommendations: [...] }; older shape was a bare array
+  // main wraps results as { recommendations: [...] }; older shape was a bare array
   const dishes = Array.isArray(json) ? json : json?.recommendations;
+  console.log("Ucook returned", Array.isArray(dishes) ? dishes.length : 0, "dishes");
+  console.log("dishes:", dishes);
   return (Array.isArray(dishes) ? dishes : []).map(adaptUcookDish);
 }
 

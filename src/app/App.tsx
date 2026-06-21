@@ -1,5 +1,7 @@
-import { useState, useRef } from "react";
-import { motion } from "motion/react";
+import { useState, useRef, useEffect } from "react";
+import React from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { FOOD_ART } from "./food-art";
 import {
   Trash2,
   Star,
@@ -30,6 +32,32 @@ interface Ingredient {
   kitchen: KitchenTab;
 }
 
+interface PlacedItem {
+  uid: string;
+  ingId: string;
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+  zIndex: number;
+}
+interface FlyingItem {
+  uid: string;
+  ingId: string;
+  kitchen: KitchenTab;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  placed?: PlacedItem; // only set for main-kitchen items going into the bowl
+}
+interface Particle {
+  id: string;
+  x: number; y: number;
+  angle: number;
+  color: string;
+}
+
 interface Recommendation {
   id: string;
   dish: string;
@@ -42,6 +70,7 @@ interface Recommendation {
   ingredients: string[];
   description: string;
   cuisine: string;
+  imageId: string;
 }
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -49,7 +78,7 @@ interface Recommendation {
 const INGREDIENTS: Ingredient[] = [
   { id: "chicken", name: "Chicken", emoji: "🍗", kitchen: "main" },
   { id: "beef", name: "Beef", emoji: "🥩", kitchen: "main" },
-  { id: "salmon", name: "Salmon", emoji: "🐟", kitchen: "main" },
+  { id: "salmon", name: "Fish", emoji: "🐟", kitchen: "main" },
   { id: "tofu", name: "Tofu", emoji: "🫘", kitchen: "main" },
   { id: "pasta", name: "Pasta", emoji: "🍝", kitchen: "main" },
   { id: "rice", name: "Rice", emoji: "🍚", kitchen: "main" },
@@ -91,6 +120,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Tender grilled chicken glazed with house-made teriyaki sauce over steamed jasmine rice, topped with sesame broccoli, pickled ginger, and toasted sesame seeds.",
     cuisine: "Japanese",
+    imageId: "1679279726946-a158b8bcaa23",
   },
   {
     id: "r2",
@@ -105,6 +135,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Fresh Atlantic salmon over al dente spaghetti with bright lemon cream sauce, cherry tomatoes, capers, and fresh dill. Light and aromatic.",
     cuisine: "Italian",
+    imageId: "1559058789-672da06263d8",
   },
   {
     id: "r3",
@@ -119,6 +150,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Marinated wagyu-style beef over stone pot rice with seasonal vegetables, a perfectly fried egg, house gochujang paste, and sesame oil drizzle.",
     cuisine: "Korean",
+    imageId: "1718777791262-c66d11baaa3b",
   },
   {
     id: "r4",
@@ -133,6 +165,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Silken tofu in numbing Sichuan chili broth with wheat noodles, crispy scallions, chili oil, and house Sichuan peppercorn seasoning. Vegan-friendly.",
     cuisine: "Chinese",
+    imageId: "1555126634-323283e090fa",
   },
   {
     id: "r5",
@@ -147,6 +180,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Wok-tossed jasmine rice with farm-fresh eggs, roasted garlic, golden onions, soy-ginger glaze, and crispy shallots.",
     cuisine: "Chinese",
+    imageId: "1603133872878-684f208fb84b",
   },
   {
     id: "r6",
@@ -161,6 +195,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Pan-seared wild-caught salmon with honey-garlic glaze, roasted tenderstem broccoli, crispy potato wedges, and lemon caper butter.",
     cuisine: "Western",
+    imageId: "1611599537845-1c7aca0091c0",
   },
   {
     id: "r7",
@@ -175,6 +210,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Double smashed beef patty with aged cheddar, beefsteak tomato, caramelised onion, special sauce on a toasted brioche bun with golden fries.",
     cuisine: "American",
+    imageId: "1713330801172-03f8d1c0dde7",
   },
   {
     id: "r8",
@@ -189,6 +225,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Chargrilled tandoor chicken in rich creamy tomato masala sauce, served with fragrant saffron basmati rice and warm garlic naan.",
     cuisine: "Indian",
+    imageId: "1565557623262-b51c2513a641",
   },
   {
     id: "r9",
@@ -203,6 +240,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Traditional Roman carbonara — silky egg sauce, guanciale, freshly cracked black pepper, and aged pecorino romano. No cream, just pure technique.",
     cuisine: "Italian",
+    imageId: "1546549032-9571cd6b27df",
   },
   {
     id: "r10",
@@ -217,6 +255,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Baked sesame tofu, brown rice, roasted broccoli, cherry tomatoes, edamame, pickled cabbage, and tahini miso dressing.",
     cuisine: "Healthy",
+    imageId: "1505576633757-0ac1084af824",
   },
   {
     id: "r11",
@@ -231,6 +270,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Poached eggs on toasted sourdough with whipped ricotta, crispy hash browns, and a side of freshly brewed house coffee. Weekend brunch staple.",
     cuisine: "Brunch",
+    imageId: "1687276287139-88f7333c8ca4",
   },
   {
     id: "r12",
@@ -245,6 +285,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Thick blended acai and banana base topped with house granola, fresh banana slices, toasted almonds, coconut flakes, and a drizzle of honey.",
     cuisine: "Healthy",
+    imageId: "1627308594190-a057cd4bfac8",
   },
   {
     id: "r13",
@@ -259,6 +300,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Three seasonal cheeses — aged cheddar, brie, and manchego — with seeded crackers, candied walnuts, fig preserve, and a glass of house red.",
     cuisine: "European",
+    imageId: "1601912262364-3a35aa0d9399",
   },
   {
     id: "r14",
@@ -273,6 +315,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Rich 70% dark chocolate fondue with skewered banana, apple slices, toasted hazelnuts, and mini marshmallows for dipping.",
     cuisine: "Dessert",
+    imageId: "1639337479586-18651b428be4",
   },
   {
     id: "r15",
@@ -287,6 +330,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Greek yogurt base with cold brew–soaked oats, sliced banana, almond butter swirl, roasted mixed nuts, and a shot of cold brew on the side.",
     cuisine: "Healthy",
+    imageId: "1542691457-cbe4df041eb2",
   },
   {
     id: "r16",
@@ -301,6 +345,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Layers of ceremonial matcha-infused yogurt, caramelised apple compote, candied pecans, and house granola. Light, bright, and energising.",
     cuisine: "Healthy",
+    imageId: "1717603545586-208c9d67fcbe",
   },
   {
     id: "r17",
@@ -315,6 +360,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Crispy twice-baked potato skins loaded with aged cheddar, caramelised onion, sour cream, and smoked paprika. A comfort classic.",
     cuisine: "American",
+    imageId: "1505576633757-0ac1084af824",
   },
   {
     id: "r18",
@@ -329,6 +375,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Thick-cut brioche French toast, banana foster topping, crushed boba pearls, and a drizzle of dark chocolate ganache. A dessert for breakfast.",
     cuisine: "Fusion",
+    imageId: "1484723091739-30a097e8f929",
   },
   {
     id: "r19",
@@ -343,6 +390,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Chilled sparkling apple and elderflower juice paired with whipped feta, heirloom tomatoes, seeded crackers, and marinated olives.",
     cuisine: "Mediterranean",
+    imageId: "1763637674539-5ef67d4a4506",
   },
   {
     id: "r20",
@@ -357,6 +405,7 @@ const ALL_RECS: Recommendation[] = [
     description:
       "Crispy popcorn chicken bites, steamed jasmine rice, pickled radish, edamame, and a cold soda. A proper lunchbox in a box.",
     cuisine: "Japanese-Fusion",
+    imageId: "1594955332421-2033cfd867b4",
   },
 ];
 
@@ -367,6 +416,23 @@ const FRIENDS = [
   "Sam Rivera",
   "Casey Wong",
   "Taylor Lee",
+];
+
+// ─── Bowl Slots ───────────────────────────────────────────────────────────────
+
+const BOWL_SLOTS: Array<{ x: number; y: number; z: number; scale: number }> = [
+  { x: 50, y: 85, z: 2, scale: 0.95 }, { x: 34, y: 83, z: 1, scale: 0.90 },
+  { x: 66, y: 83, z: 1, scale: 0.90 }, { x: 42, y: 89, z: 1, scale: 0.85 },
+  { x: 58, y: 89, z: 1, scale: 0.85 }, { x: 50, y: 74, z: 3, scale: 0.92 },
+  { x: 30, y: 72, z: 2, scale: 0.88 }, { x: 70, y: 72, z: 2, scale: 0.88 },
+  { x: 42, y: 78, z: 3, scale: 0.90 }, { x: 58, y: 78, z: 3, scale: 0.90 },
+  { x: 50, y: 63, z: 4, scale: 0.84 }, { x: 32, y: 62, z: 3, scale: 0.80 },
+  { x: 68, y: 62, z: 3, scale: 0.80 }, { x: 42, y: 67, z: 4, scale: 0.82 },
+  { x: 58, y: 67, z: 4, scale: 0.82 }, { x: 50, y: 53, z: 5, scale: 0.74 },
+  { x: 35, y: 54, z: 5, scale: 0.71 }, { x: 65, y: 54, z: 5, scale: 0.71 },
+  { x: 44, y: 58, z: 5, scale: 0.77 }, { x: 56, y: 58, z: 5, scale: 0.77 },
+  { x: 50, y: 46, z: 6, scale: 0.67 }, { x: 41, y: 47, z: 6, scale: 0.64 },
+  { x: 59, y: 47, z: 6, scale: 0.64 },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -476,10 +542,10 @@ function LandingPage({
           className="text-5xl sm:text-6xl font-bold text-foreground mb-5 leading-[1.1]"
           style={{ fontFamily: "var(--font-family-display)" }}
         >
-          Who is choosing your ingredients today?
+          Who is cooking today?
         </h1>
         <p className="text-muted-foreground text-lg mb-12 leading-relaxed">
-          Build your plate, then let us find your perfect meal match.
+          Pick your ingredient, then let us find your perfect meal match.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -579,6 +645,18 @@ function FriendsPage({ onBack }: { onBack: () => void }) {
 
 // ─── Kitchen ─────────────────────────────────────────────────────────────────
 
+// Splits an array into fixed-size rows
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Deterministic number from a string so animations don't re-randomise on re-render
+function strSeed(s: string): number {
+  return s.split("").reduce((acc, c, i) => acc + c.charCodeAt(0) * (i + 1), 0);
+}
+
 const KITCHEN_CATEGORIES: Record<
   KitchenTab,
   { label: string; desc: string; ids: string[] }[]
@@ -586,7 +664,7 @@ const KITCHEN_CATEGORIES: Record<
   main: [
     { label: "Protein", desc: "Pick one or more", ids: ["chicken", "beef", "salmon", "tofu", "eggs"] },
     { label: "Vegetables", desc: "Add as many as you like", ids: ["broccoli", "tomato", "garlic", "onion"] },
-    { label: "Carbs & Sides", desc: "Add some substance", ids: ["rice", "pasta", "potato"] },
+    { label: "Carbs", desc: "Add some substance", ids: ["rice", "pasta", "potato"] },
   ],
   snack: [
     { label: "Crunchy", desc: "Pick one or more", ids: ["nuts", "crackers", "popcorn"] },
@@ -606,48 +684,41 @@ const KITCHEN_TABS: { id: KitchenTab; label: string; icon: React.ReactNode }[] =
   { id: "drink", label: "Drink", icon: <Coffee size={15} /> },
 ];
 
-function BowlIllustration({ active }: { active: boolean }) {
+function BowlSVG({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 320 230" className="w-full" style={{ maxWidth: 320 }}>
-      {/* Soft drop shadow */}
-      <ellipse cx="160" cy="222" rx="110" ry="8" fill="rgba(0,0,0,0.06)" />
-      {/* Bowl body fill */}
-      <path
-        d="M 32 90 C 32 175 88 212 160 214 C 232 212 288 175 288 90 Z"
-        fill="#f7f5ef"
-      />
-      {/* Bowl body stroke */}
-      <path
-        d="M 32 90 C 32 175 88 212 160 214 C 232 212 288 175 288 90"
-        fill="none"
-        stroke="#ddd8cc"
-        strokeWidth="2"
-      />
-      {/* Rim ellipse fill (sits on top of body) */}
-      <ellipse cx="160" cy="90" rx="128" ry="38" fill="#f7f5ef" />
-      {/* Rim ellipse stroke */}
-      <ellipse
-        cx="160"
-        cy="90"
-        rx="128"
-        ry="38"
-        fill="none"
-        stroke="#ddd8cc"
-        strokeWidth="2"
-      />
-      {/* Inner rim highlight */}
-      <ellipse cx="160" cy="90" rx="116" ry="30" fill="#faf9f5" />
-      {/* Green heart */}
-      <text
-        x="160"
-        y="172"
-        textAnchor="middle"
-        fontSize="26"
-        fill={active ? "#06c167" : "#c8e6d4"}
-        style={{ transition: "fill 0.3s" }}
-      >
-        ♥
-      </text>
+    <svg viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <defs>
+        <radialGradient id="bwl-rim" cx="50%" cy="35%" r="65%">
+          <stop offset="0%" stopColor="#ffffff"/>
+          <stop offset="100%" stopColor="#ddd5c5"/>
+        </radialGradient>
+        <radialGradient id="bwl-body" cx="50%" cy="42%" r="60%">
+          <stop offset="0%" stopColor="#f8f4ec"/>
+          <stop offset="100%" stopColor="#e8e0d0"/>
+        </radialGradient>
+        <radialGradient id="bwl-inner" cx="50%" cy="32%" r="70%">
+          <stop offset="0%" stopColor="#faf8f2"/>
+          <stop offset="100%" stopColor="#ede7d8"/>
+        </radialGradient>
+      </defs>
+      {/* Drop shadow */}
+      <ellipse cx="200" cy="314" rx="155" ry="10" fill="rgba(0,0,0,0.10)"/>
+      {/* Outer body */}
+      <path d="M 45 140 Q 52 296 200 308 Q 348 296 355 140 Z" fill="url(#bwl-body)"/>
+      {/* Interior */}
+      <path d="M 60 140 Q 66 284 200 296 Q 334 284 340 140 Z" fill="url(#bwl-inner)"/>
+      {/* Interior edge shadow */}
+      <path d="M 60 140 Q 66 284 200 296 Q 334 284 340 140 Z" fill="none" stroke="rgba(80,60,30,0.07)" strokeWidth="24"/>
+      {/* Outer rim */}
+      <ellipse cx="200" cy="140" rx="155" ry="52" fill="url(#bwl-rim)"/>
+      {/* Rim surface */}
+      <ellipse cx="200" cy="140" rx="142" ry="46" fill="#f2ece0"/>
+      {/* Inner rim */}
+      <ellipse cx="200" cy="140" rx="128" ry="38" fill="#faf8f4"/>
+      {/* Specular highlight on rim */}
+      <path d="M 88 122 Q 168 106 258 118" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="6" strokeLinecap="round"/>
+      {/* Inner rim edge */}
+      <ellipse cx="200" cy="140" rx="128" ry="38" fill="none" stroke="#ddd6c5" strokeWidth="1.5"/>
     </svg>
   );
 }
@@ -661,31 +732,112 @@ function KitchenSection({
 }) {
   const [activeKitchen, setActiveKitchen] = useState<KitchenTab>("main");
   const [plate, setPlate] = useState<Ingredient[]>(initialPlate);
+  // Only main-kitchen items land inside the bowl
+  const [placedItems, setPlacedItems] = useState<PlacedItem[]>([]);
+  // Snacks and drinks are shown beside the bowl, never inside it
+  const [snackIds, setSnackIds] = useState<string[]>([]);
+  const [drinkIds, setDrinkIds] = useState<string[]>([]);
+  const [flyingItems, setFlyingItems] = useState<FlyingItem[]>([]);
+  const [particles, setParticles] = useState<Particle[]>([]);
   const [dragOver, setDragOver] = useState(false);
-  const [dragging, setDragging] = useState<string | null>(null);
+  const dragSourceRef = useRef<DOMRect | null>(null);
+  const bowlRef = useRef<HTMLDivElement>(null);
+  const snackAreaRef = useRef<HTMLDivElement>(null);
+  const drinkAreaRef = useRef<HTMLDivElement>(null);
 
-  const addToPlate = (ingredient: Ingredient) => {
-    if (!plate.find((p) => p.id === ingredient.id)) {
-      setPlate((prev) => [...prev, ingredient]);
+  useEffect(() => {
+    if (initialPlate.length === 0) return;
+    const jitter = (s: string, r: number) => ((strSeed(s) % (r * 2 + 1)) - r);
+    let mainIdx = 0;
+    const mainPlaced: PlacedItem[] = [];
+    const snacks: string[] = [];
+    const drinks: string[] = [];
+    initialPlate.forEach((ing, i) => {
+      if (ing.kitchen === "snack") { snacks.push(ing.id); return; }
+      if (ing.kitchen === "drink") { drinks.push(ing.id); return; }
+      const slot = BOWL_SLOTS[mainIdx % BOWL_SLOTS.length];
+      mainPlaced.push({
+        uid: `${ing.id}-init-${i}`,
+        ingId: ing.id,
+        x: slot.x + jitter(ing.id + 'x', 3),
+        y: slot.y + jitter(ing.id + 'y', 2),
+        rotation: jitter(ing.id + 'r', 12),
+        scale: slot.scale,
+        zIndex: slot.z,
+      });
+      mainIdx++;
+    });
+    setPlacedItems(mainPlaced);
+    setSnackIds(snacks);
+    setDrinkIds(drinks);
+  }, []); // eslint-disable-line
+
+  const getNextSlot = (mainCount: number, ingId: string) => {
+    const slot = BOWL_SLOTS[mainCount % BOWL_SLOTS.length];
+    const jitter = (s: string, range: number) => ((strSeed(s) % (range * 2 + 1)) - range);
+    return {
+      ...slot,
+      x: slot.x + jitter(ingId + 'x', 3),
+      y: slot.y + jitter(ingId + 'y', 2),
+      rotation: jitter(ingId + 'r', 12),
+    };
+  };
+
+  const spawnParticles = (cx: number, cy: number) => {
+    const COLORS = ["#06c167", "#ffc040", "#ff6040", "#60c8ff", "#ff60a0", "#c0ff60"];
+    const pts: Particle[] = Array.from({ length: 8 }, (_, i) => ({
+      id: `${Date.now()}-${i}`, x: cx, y: cy,
+      angle: (360 / 8) * i, color: COLORS[i % COLORS.length],
+    }));
+    setParticles(prev => [...prev, ...pts]);
+    setTimeout(() => setParticles(prev => prev.filter(p => !pts.find(n => n.id === p.id))), 700);
+  };
+
+  const addIngredientWithFly = (ingId: string, sourceRect: DOMRect) => {
+    if (plate.find(p => p.id === ingId)) return;
+    const ing = INGREDIENTS.find(i => i.id === ingId)!;
+    const fromX = sourceRect.left + sourceRect.width / 2;
+    const fromY = sourceRect.top + sourceRect.height / 2;
+    const uid = `${ingId}-${Date.now()}`;
+
+    if (ing.kitchen === "main") {
+      const bowlRect = bowlRef.current?.getBoundingClientRect();
+      if (!bowlRect) return;
+      const mainCount = plate.filter(p => INGREDIENTS.find(i => i.id === p.id)?.kitchen === "main").length;
+      const slot = getNextSlot(mainCount, ingId);
+      const toX = bowlRect.left + bowlRect.width * (slot.x / 100);
+      const toY = bowlRect.top + bowlRect.height * (slot.y / 100);
+      const placed: PlacedItem = { uid, ingId, x: slot.x, y: slot.y, rotation: slot.rotation, scale: slot.scale, zIndex: slot.z };
+      setFlyingItems(prev => [...prev, { uid, ingId, kitchen: "main", fromX, fromY, toX, toY, placed }]);
+    } else {
+      const targetRef = ing.kitchen === "snack" ? snackAreaRef : drinkAreaRef;
+      const rect = targetRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const toX = rect.left + rect.width / 2;
+      const toY = rect.top + rect.height / 2;
+      setFlyingItems(prev => [...prev, { uid, ingId, kitchen: ing.kitchen, fromX, fromY, toX, toY }]);
     }
+    setPlate(prev => [...prev, ing]);
   };
 
-  const removeFromPlate = (id: string) =>
-    setPlate((prev) => prev.filter((p) => p.id !== id));
-
-  const onDragStart = (e: React.DragEvent, id: string) => {
-    e.dataTransfer.setData("id", id);
-    setDragging(id);
+  const handleFlyComplete = (item: FlyingItem) => {
+    setFlyingItems(prev => prev.filter(f => f.uid !== item.uid));
+    if (item.kitchen === "snack") setSnackIds(prev => [...prev, item.ingId]);
+    else if (item.kitchen === "drink") setDrinkIds(prev => [...prev, item.ingId]);
+    else if (item.placed) setPlacedItems(prev => [...prev, item.placed!]);
+    spawnParticles(item.toX, item.toY);
   };
 
-  const onDragEnd = () => setDragging(null);
+  const removeIngredient = (ingId: string) => {
+    const ing = INGREDIENTS.find(i => i.id === ingId);
+    setPlate(prev => prev.filter(p => p.id !== ingId));
+    if (ing?.kitchen === "snack") setSnackIds(prev => prev.filter(id => id !== ingId));
+    else if (ing?.kitchen === "drink") setDrinkIds(prev => prev.filter(id => id !== ingId));
+    else setPlacedItems(prev => prev.filter(p => p.ingId !== ingId));
+  };
 
-  const onBowlDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const id = e.dataTransfer.getData("id");
-    const ing = INGREDIENTS.find((i) => i.id === id);
-    if (ing) addToPlate(ing);
+  const clearAll = () => {
+    setPlate([]); setPlacedItems([]); setSnackIds([]); setDrinkIds([]); setFlyingItems([]);
   };
 
   const categories = KITCHEN_CATEGORIES[activeKitchen];
@@ -706,7 +858,7 @@ function KitchenSection({
       <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 border-b border-border">
         <div>
           <h1 className="text-2xl font-bold leading-tight" style={{ fontFamily: "var(--font-family-display)" }}>
-            Build your plate
+            Choose your ingredient
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             Customise fresh ingredients just the way you like
@@ -723,13 +875,13 @@ function KitchenSection({
               : "bg-muted text-muted-foreground cursor-not-allowed"
           }`}
         >
-          Add Ingredients
+          Confirm Ingredients
           {plate.length > 0 && <span className="text-xs opacity-80">→</span>}
         </motion.button>
       </div>
 
       {/* ── Body: 3-col on lg, stacked on mobile ── */}
-      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_300px_220px] overflow-hidden">
+      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_440px_220px] overflow-hidden">
 
         {/* ── Left: Ingredient Categories ── */}
         <div className="overflow-y-auto px-6 py-5 flex flex-col gap-7">
@@ -756,16 +908,31 @@ function KitchenSection({
                       <div
                         key={ing.id}
                         draggable={!added}
-                        onDragStart={(e) => !added && onDragStart(e, ing.id)}
-                        onDragEnd={onDragEnd}
-                        onClick={() => (added ? removeFromPlate(ing.id) : addToPlate(ing))}
+                        onDragStart={(e) => {
+                          if (added) return;
+                          e.dataTransfer.setData("id", ing.id);
+                          dragSourceRef.current = e.currentTarget.getBoundingClientRect();
+                        }}
+                        onClick={(e) => {
+                          if (added) {
+                            removeIngredient(ing.id);
+                          } else {
+                            addIngredientWithFly(ing.id, e.currentTarget.getBoundingClientRect());
+                          }
+                        }}
                         className={`relative flex-shrink-0 flex flex-col items-center justify-end gap-1.5 w-[78px] pt-3 pb-2.5 px-1 rounded-2xl border-2 select-none transition-all cursor-pointer ${
                           added
                             ? "border-primary bg-primary/6 shadow-sm shadow-primary/15"
                             : "border-border bg-white hover:border-primary/40 hover:shadow-sm cursor-grab active:cursor-grabbing"
-                        } ${dragging === ing.id ? "opacity-40" : "opacity-100"}`}
+                        }`}
                       >
-                        <span className="text-[2rem] leading-none">{ing.emoji}</span>
+                        {FOOD_ART[ing.id] ? (
+                          <div className="w-11 h-11">
+                            {React.createElement(FOOD_ART[ing.id])}
+                          </div>
+                        ) : (
+                          <span className="text-[2rem] leading-none">{ing.emoji}</span>
+                        )}
                         <span className="text-[11px] font-medium text-center leading-tight text-foreground w-full truncate px-0.5">
                           {ing.name}
                         </span>
@@ -806,40 +973,185 @@ function KitchenSection({
           </div>
         </div>
 
-        {/* ── Center: Bowl drop zone ── */}
+        {/* ── Center: side panel (snacks + drinks) on the left + main bowl ── */}
         <div
-          className={`flex flex-col items-center justify-center py-8 px-4 transition-all duration-200 ${
-            dragOver ? "bg-primary/4" : "bg-white"
-          }`}
+          className={`flex flex-col items-center justify-center py-5 px-3 gap-3 transition-all duration-200 ${dragOver ? "bg-primary/5" : "bg-white"}`}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={onBowlDrop}
+          onDrop={(e) => {
+            e.preventDefault(); setDragOver(false);
+            const id = e.dataTransfer.getData("id");
+            if (id && dragSourceRef.current) addIngredientWithFly(id, dragSourceRef.current);
+          }}
         >
-          <div className="relative w-full max-w-[280px]">
-            <BowlIllustration active={plate.length > 0} />
-            {/* Items scattered in the bowl */}
-            {plate.length > 0 && (
-              <div
-                className="absolute inset-0 flex flex-wrap items-center justify-center gap-0.5 pt-6 pb-14 px-12 pointer-events-none"
-              >
-                {plate.slice(0, 12).map((ing) => (
-                  <span key={ing.id} className="text-xl leading-none">{ing.emoji}</span>
-                ))}
-                {plate.length > 12 && (
-                  <span className="text-xs text-muted-foreground font-medium">+{plate.length - 12}</span>
-                )}
+          <div className="flex items-end gap-4 w-full justify-center">
+
+            {/* ── Left side panel: Snacks (top) + Drinks (bottom) ── */}
+            <div className="flex flex-col gap-2.5 flex-shrink-0" style={{ width: 128 }}>
+
+              {/* Snacks */}
+              <div className="flex flex-col gap-1">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Snacks</p>
+                <div
+                  ref={snackAreaRef}
+                  className="rounded-2xl border border-[#e8e2d8] bg-[#faf8f4] p-2 min-h-[80px]"
+                >
+                  {snackIds.length === 0 ? (
+                    <div className="flex items-center justify-center h-14">
+                      <p className="text-[10px] text-muted-foreground/50 text-center leading-snug">snacks<br/>here</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 justify-center">
+                      <AnimatePresence>
+                        {snackIds.map(id => {
+                          const FoodComp = FOOD_ART[id];
+                          const ing = INGREDIENTS.find(i => i.id === id);
+                          if (!FoodComp) return null;
+                          const restRot = ((strSeed(id) % 13) - 6);
+                          return (
+                            <motion.div
+                              key={id}
+                              initial={{ scale: 0, opacity: 0, y: -12 }}
+                              animate={{ scale: 1, opacity: 1, y: 0, rotate: restRot }}
+                              exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
+                              transition={{ type: "spring", stiffness: 440, damping: 20 }}
+                              className="relative cursor-pointer group flex flex-col items-center"
+                              onClick={() => removeIngredient(id)}
+                              title={`Remove ${ing?.name}`}
+                            >
+                              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-8 h-1.5 rounded-full bg-black/10 blur-sm" />
+                              <div style={{ width: 44, height: 44 }} className="relative">
+                                <FoodComp />
+                                <div className="absolute inset-0 rounded-full bg-destructive/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                  <X size={11} className="text-destructive" />
+                                </div>
+                              </div>
+                              <p className="text-[9px] text-muted-foreground truncate max-w-[44px] text-center mt-0.5">{ing?.name}</p>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Drinks */}
+              <div className="flex flex-col gap-1">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Drinks</p>
+                <div
+                  ref={drinkAreaRef}
+                  className="rounded-2xl border border-[#e8e2d8] bg-[#faf8f4] p-2 min-h-[80px]"
+                >
+                  {drinkIds.length === 0 ? (
+                    <div className="flex items-center justify-center h-14">
+                      <p className="text-[10px] text-muted-foreground/50 text-center leading-snug">drinks<br/>here</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 justify-center">
+                      <AnimatePresence>
+                        {drinkIds.map(id => {
+                          const FoodComp = FOOD_ART[id];
+                          const ing = INGREDIENTS.find(i => i.id === id);
+                          if (!FoodComp) return null;
+                          return (
+                            <motion.div
+                              key={id}
+                              initial={{ scale: 0, opacity: 0, y: -12 }}
+                              animate={{ scale: 1, opacity: 1, y: 0 }}
+                              exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
+                              transition={{ type: "spring", stiffness: 440, damping: 20 }}
+                              className="relative cursor-pointer group flex flex-col items-center"
+                              onClick={() => removeIngredient(id)}
+                              title={`Remove ${ing?.name}`}
+                            >
+                              <div className="relative" style={{ width: 46, height: 46 }}>
+                                <FoodComp />
+                                <div className="absolute inset-0 bg-destructive/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-lg">
+                                  <X size={11} className="text-destructive" />
+                                </div>
+                              </div>
+                              <p className="text-[9px] text-muted-foreground truncate max-w-[44px] text-center mt-0.5">{ing?.name}</p>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* ── Main bowl ── */}
+            <div ref={bowlRef} className="relative flex-shrink-0" style={{ width: 280 }}>
+              <BowlSVG className="w-full" />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ clipPath: "ellipse(34% 24% at 50% 68%)" }}
+              >
+                <AnimatePresence>
+                  {placedItems.map(item => {
+                    const FoodComp = FOOD_ART[item.ingId];
+                    if (!FoodComp) return null;
+                    const size = Math.round(item.scale * 68);
+                    return (
+                      <motion.div
+                        key={item.uid}
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0, transition: { duration: 0.18 } }}
+                        transition={{ type: "spring", stiffness: 480, damping: 18 }}
+                        style={{
+                          position: "absolute",
+                          left: `${item.x}%`, top: `${item.y}%`,
+                          width: size, height: size,
+                          marginLeft: -size / 2, marginTop: -size / 2,
+                          zIndex: item.zIndex,
+                          rotate: item.rotation,
+                          filter: "drop-shadow(0 2px 5px rgba(0,0,0,0.20))",
+                          pointerEvents: "auto",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => removeIngredient(item.ingId)}
+                        title={`Remove ${item.ingId}`}
+                      >
+                        <FoodComp />
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+              {placedItems.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ paddingTop: "32%" }}>
+                  <p className="text-xs text-muted-foreground opacity-60">main ingredients here</p>
+                </div>
+              )}
+              {dragOver && (
+                <div className="absolute inset-0 pointer-events-none rounded-full" style={{ border: "3px dashed #06c167", opacity: 0.4 }} />
+              )}
+            </div>
+
+          </div>
+
+          {/* Status + clear */}
+          <div className="flex flex-col items-center gap-2 mt-2">
+            <p className={`text-xs transition-colors ${dragOver ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+              {plate.length === 0
+                ? "Drag or click ingredients to build your meal"
+                : `${plate.length} ingredient${plate.length !== 1 ? "s" : ""} · tap any item to remove`}
+            </p>
+            {plate.length > 0 && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                onClick={clearAll}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+              >
+                <Trash2 size={11} /> Clear all
+              </motion.button>
             )}
           </div>
-          <p className={`text-sm mt-3 transition-colors ${
-            dragOver ? "text-primary font-medium" : "text-muted-foreground"
-          }`}>
-            {plate.length === 0
-              ? dragOver ? "Drop to add" : "Start building ↑"
-              : dragOver
-              ? "Drop to add"
-              : `${plate.length} ingredient${plate.length > 1 ? "s" : ""} added`}
-          </p>
         </div>
 
         {/* ── Right: Added items panel ── */}
@@ -871,11 +1183,17 @@ function KitchenSection({
                         className="flex items-center justify-between py-1.5 px-3 rounded-xl bg-card border border-border group hover:border-destructive/30 transition-colors"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-base">{ing.emoji}</span>
+                          {FOOD_ART[ing.id] ? (
+                            <div className="w-5 h-5 flex-shrink-0">
+                              {React.createElement(FOOD_ART[ing.id])}
+                            </div>
+                          ) : (
+                            <span className="text-base">{ing.emoji}</span>
+                          )}
                           <span className="text-sm font-medium">{ing.name}</span>
                         </div>
                         <button
-                          onClick={() => removeFromPlate(ing.id)}
+                          onClick={() => removeIngredient(ing.id)}
                           className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
                         >
                           <X size={13} />
@@ -896,7 +1214,7 @@ function KitchenSection({
               onDrop={(e) => {
                 e.preventDefault();
                 const id = e.dataTransfer.getData("id");
-                removeFromPlate(id);
+                removeIngredient(id);
               }}
             >
               <Trash2 size={14} />
@@ -905,6 +1223,42 @@ function KitchenSection({
           )}
         </div>
       </div>
+
+      {/* ── Flying food items (fixed, over everything) ── */}
+      {flyingItems.map(item => {
+        const FoodComp = FOOD_ART[item.ingId];
+        if (!FoodComp) return null;
+        const midX = (item.fromX + item.toX) / 2;
+        const arcTop = Math.min(item.fromY, item.toY) - 110;
+        return (
+          <motion.div
+            key={item.uid}
+            style={{ position: "fixed", left: 0, top: 0, width: 60, height: 60, zIndex: 9999, pointerEvents: "none" }}
+            initial={{ x: item.fromX - 30, y: item.fromY - 30, rotate: 0, scale: 1, opacity: 1 }}
+            animate={{
+              x: [item.fromX - 30, midX - 30, item.toX - 30],
+              y: [item.fromY - 30, arcTop - 30, item.toY - 30],
+              rotate: [0, -180, -360],
+              scale: [1.0, 0.88, 0.65],
+              opacity: [1, 1, 0],
+            }}
+            transition={{ duration: 0.52, times: [0, 0.44, 1], ease: "easeInOut" }}
+            onAnimationComplete={() => handleFlyComplete(item)}
+          >
+            <FoodComp />
+          </motion.div>
+        );
+      })}
+      {/* ── Particle burst ── */}
+      {particles.map(p => (
+        <motion.div
+          key={p.id}
+          style={{ position: "fixed", left: p.x - 4, top: p.y - 4, width: 8, height: 8, borderRadius: "50%", backgroundColor: p.color, zIndex: 9998, pointerEvents: "none" }}
+          initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+          animate={{ x: Math.cos(p.angle * Math.PI / 180) * 44, y: Math.sin(p.angle * Math.PI / 180) * 44, opacity: 0, scale: 0 }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+        />
+      ))}
     </div>
   );
 }
@@ -924,14 +1278,18 @@ function RecCard({
 
   return (
     <TiltCard className="flex flex-col bg-card border border-border rounded-3xl overflow-hidden h-full">
-      <div
-        className={`h-1 w-full ${
-          label === "A" ? "bg-primary" : "bg-foreground"
-        }`}
-      />
-      <div className="p-6 flex flex-col gap-4 flex-1">
+      {/* Hero image */}
+      <div className="relative h-40 flex-shrink-0 bg-muted overflow-hidden">
+        <img
+          src={`https://images.unsplash.com/photo-${rec.imageId}?w=600&h=320&fit=crop&auto=format`}
+          alt={rec.dish}
+          className="w-full h-full object-cover"
+        />
+        {/* Gradient fade into card */}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
+        {/* Label badge */}
         <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold ${
+          className={`absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold shadow-md ${
             label === "A"
               ? "bg-primary text-primary-foreground"
               : "bg-foreground text-background"
@@ -939,50 +1297,42 @@ function RecCard({
         >
           {label}
         </div>
+        {/* Discount chip */}
+        {rec.discount !== "None" && (
+          <div className="absolute top-3 right-3 flex items-center gap-1 bg-primary text-primary-foreground px-2 py-1 rounded-full text-[10px] font-bold shadow">
+            <Tag size={9} />
+            {rec.discount}
+          </div>
+        )}
+      </div>
 
+      <div className="p-5 flex flex-col gap-3 flex-1">
         <div>
           <h3
-            className="text-xl font-bold leading-snug"
+            className="text-lg font-bold leading-snug"
             style={{ fontFamily: "var(--font-family-display)" }}
           >
             {rec.dish}
           </h3>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-muted-foreground text-xs mt-0.5">
             {rec.restaurant} · {rec.cuisine}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-2 bg-secondary rounded-xl px-3 py-2">
-            <Star
-              size={13}
-              className="text-amber-400 fill-amber-400 shrink-0"
-            />
+        <div className="flex gap-2">
+          <div className="flex items-center gap-1.5 bg-secondary rounded-xl px-3 py-2 flex-shrink-0">
+            <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" />
             <span className="text-sm font-semibold">{rec.rating}</span>
           </div>
-          <div className="flex items-center gap-2 bg-secondary rounded-xl px-3 py-2">
-            <Clock size={13} className="text-muted-foreground shrink-0" />
-            <span className="text-sm font-medium">{rec.time}</span>
-            <span className="text-muted-foreground text-xs">·</span>
-            <span className="text-sm font-medium">
-              {rec.deliveryCost === 0 ? "Free" : `$${rec.deliveryCost.toFixed(2)}`}
+          <div className="flex items-center gap-1.5 bg-secondary rounded-xl px-3 py-2 flex-1 min-w-0">
+            <Clock size={12} className="text-muted-foreground shrink-0" />
+            <span className="text-xs font-medium truncate">
+              {rec.time} · {rec.deliveryCost === 0 ? "Free delivery" : `$${rec.deliveryCost.toFixed(2)}`}
             </span>
           </div>
-          <div className="flex items-center gap-2 bg-secondary rounded-xl px-3 py-2">
+          <div className="flex items-center gap-1 bg-secondary rounded-xl px-3 py-2 flex-shrink-0">
             <span className="text-sm font-bold">${rec.cost.toFixed(2)}</span>
           </div>
-          {rec.discount !== "None" ? (
-            <div className="flex items-center gap-1.5 bg-primary/10 rounded-xl px-3 py-2">
-              <Tag size={12} className="text-primary shrink-0" />
-              <span className="text-xs font-semibold text-primary truncate">
-                {rec.discount}
-              </span>
-            </div>
-          ) : (
-            <div className="bg-secondary rounded-xl px-3 py-2">
-              <span className="text-xs text-muted-foreground">No discount</span>
-            </div>
-          )}
         </div>
 
         <button

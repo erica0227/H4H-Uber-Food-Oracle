@@ -473,6 +473,73 @@ function pickRecs(selected: Ingredient[]): Recommendation[] {
   return combined.slice(0, 6);
 }
 
+// ─── Ucook API adapter ───────────────────────────────────────────────────────
+// Translates between our frontend shape and Lenka's Ucook backend contract.
+const UCOOK_BASE = "http://localhost:8000";
+
+// Lenka's 30 ingredient keys. Request body = each key -> 0 or 1.
+const UCOOK_KEYS = [
+  "rice", "noodles", "potato", "pasta", "tomato", "broccoli", "greens",
+  "bak_choi", "salad", "chicken", "beef", "pork", "fish", "tofu", "eggs",
+  "nuts", "crackers", "popcorn", "apple", "banana", "yogurt", "cheese",
+  "chocolate", "coffee", "tea", "juice", "smoothie", "soda", "water", "wine",
+];
+
+// our ingredient id -> Lenka's key (null = no equivalent on her side)
+const UCOOK_ING_MAP: Record<string, string | null> = {
+  chicken: "chicken", beef: "beef", salmon: "fish", tofu: "tofu",
+  pasta: "pasta", rice: "rice", eggs: "eggs", broccoli: "broccoli",
+  tomato: "tomato", garlic: "greens", onion: "greens", potato: "potato",
+  nuts: "nuts", cheese: "cheese", crackers: "crackers", apple: "apple",
+  banana: "banana", yogurt: "yogurt", popcorn: "popcorn",
+  chocolate: "chocolate", coffee: "coffee", tea: "tea", juice: "juice",
+  smoothie: "smoothie", soda: "soda", water: "water", wine: "wine",
+  boba: null,
+};
+
+// selected ingredients -> { rice:0, chicken:1, ... } (all 30 keys, 0/1)
+function buildUcookPayload(selected: Ingredient[]): Record<string, number> {
+  const body: Record<string, number> = {};
+  for (const k of UCOOK_KEYS) body[k] = 0;
+  for (const ing of selected) {
+    const k = UCOOK_ING_MAP[ing.id];
+    if (k) body[k] = 1;
+  }
+  return body;
+}
+
+// Lenka's dish object -> our Recommendation (translate each field name)
+function adaptUcookDish(d: any, i: number): Recommendation {
+  const pct = Number(d.discount_from_restaurant) || 0;
+  return {
+    id: String(d.dish_id ?? `u${i}`),
+    dish: d.dish_name ?? "",
+    restaurant: d.restaurant_name ?? "",
+    time: d.restaurant_delivery_time ?? "—",
+    deliveryCost: Number(d.restaurant_delivery_fee) || 0,
+    cost: Number(d.dish_price) || 0,
+    rating: Number(d.restaurant_rating) || 0,
+    discount: pct > 0 ? `${pct}% off` : "None",
+    // she doesn't return these two; default safely so the UI never breaks
+    ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
+    cuisine: d.cuisine ?? "",
+    description: d.dish_description ?? "",
+    imageId: d.dish_image_url ?? "", // full URL; <img> handles both forms
+  };
+}
+
+// Fetch recs from Ucook backend, translated into our shape.
+async function fetchUcookRecs(selected: Ingredient[]): Promise<Recommendation[]> {
+  const res = await fetch(`${UCOOK_BASE}/recommendations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildUcookPayload(selected)),
+  });
+  if (!res.ok) throw new Error(`Ucook ${res.status}`);
+  const dishes = await res.json();
+  return (Array.isArray(dishes) ? dishes : []).map(adaptUcookDish);
+}
+
 // ─── TiltCard ────────────────────────────────────────────────────────────────
 
 function TiltCard({
@@ -1286,22 +1353,16 @@ function RecCard({
       {/* Hero image */}
       <div className="relative h-40 flex-shrink-0 bg-muted overflow-hidden">
         <img
-          src={`https://images.unsplash.com/photo-${rec.imageId}?w=600&h=320&fit=crop&auto=format`}
+          src={
+            rec.imageId.startsWith("http")
+              ? rec.imageId // Ucook gives a full URL
+              : `https://images.unsplash.com/photo-${rec.imageId}?w=600&h=320&fit=crop&auto=format`
+          }
           alt={rec.dish}
           className="w-full h-full object-cover"
         />
         {/* Gradient fade into card */}
         <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
-        {/* Label badge */}
-        <div
-          className={`absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold shadow-md ${
-            label === "A"
-              ? "bg-primary text-primary-foreground"
-              : "bg-foreground text-background"
-          }`}
-        >
-          {label}
-        </div>
         {/* Discount chip */}
         {rec.discount !== "None" && (
           <div className="absolute top-3 right-3 flex items-center gap-1 bg-primary text-primary-foreground px-2 py-1 rounded-full text-[10px] font-bold shadow">
@@ -1320,7 +1381,8 @@ function RecCard({
             {rec.dish}
           </h3>
           <p className="text-muted-foreground text-xs mt-0.5">
-            {rec.restaurant} · {rec.cuisine}
+            {rec.restaurant}
+            {rec.cuisine && ` · ${rec.cuisine}`}
           </p>
         </div>
 
@@ -1360,16 +1422,18 @@ function RecCard({
             className="text-sm text-muted-foreground leading-relaxed border-t border-border pt-4 overflow-hidden"
           >
             <p className="mb-3">{rec.description}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {rec.ingredients.map((ing) => (
-                <span
-                  key={ing}
-                  className="px-2.5 py-1 bg-secondary rounded-full text-xs font-medium text-foreground"
-                >
-                  {ing}
-                </span>
-              ))}
-            </div>
+            {rec.ingredients.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {rec.ingredients.map((ing) => (
+                  <span
+                    key={ing}
+                    className="px-2.5 py-1 bg-secondary rounded-full text-xs font-medium text-foreground"
+                  >
+                    {ing}
+                  </span>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -1410,8 +1474,18 @@ function TournamentSection({
   onExit: () => void;
 }) {
   const currentRound = winners.length; // 0–4
-  const leftCard = currentRound === 0 ? recs[0] : winners[currentRound - 1];
-  const rightCard = recs[currentRound + 1];
+  // Keep each winner in the slot it already occupied — don't shuffle the
+  // winning card to the front. The new challenger fills the opposite slot.
+  let leftCard = recs[0];
+  let rightCard = recs[1];
+  for (let r = 1; r <= currentRound; r++) {
+    const challenger = recs[r + 1];
+    if (winners[r - 1] === leftCard) {
+      rightCard = challenger; // winner stays left
+    } else {
+      leftCard = challenger; // winner stays right
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col p-6 max-w-5xl mx-auto">
@@ -1575,7 +1649,8 @@ function ResultPage({
               {winner.dish}
             </h3>
             <p className="text-muted-foreground mb-6 text-sm">
-              {winner.restaurant} · {winner.cuisine}
+              {winner.restaurant}
+              {winner.cuisine && ` · ${winner.cuisine}`}
             </p>
 
             <div className="grid grid-cols-3 gap-3 mb-5">
@@ -1616,16 +1691,18 @@ function ResultPage({
               {winner.description}
             </p>
 
-            <div className="flex flex-wrap gap-2">
-              {winner.ingredients.map((ing) => (
-                <span
-                  key={ing}
-                  className="px-3 py-1 bg-secondary rounded-full text-sm font-medium"
-                >
-                  {ing}
-                </span>
-              ))}
-            </div>
+            {winner.ingredients.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {winner.ingredients.map((ing) => (
+                  <span
+                    key={ing}
+                    className="px-3 py-1 bg-secondary rounded-full text-sm font-medium"
+                  >
+                    {ing}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </TiltCard>
 
@@ -1690,11 +1767,17 @@ export default function App() {
   // Persist plate across kitchen visits
   const [savedPlate, setSavedPlate] = useState<Ingredient[]>([]);
 
-  const handleKitchenConfirm = (ingredients: Ingredient[]) => {
+  const handleKitchenConfirm = async (ingredients: Ingredient[]) => {
     setSavedPlate(ingredients);
-    setRecs(pickRecs(ingredients));
     setWinners([]);
+    setRecs(pickRecs(ingredients)); // local result first → instant, no blank
     setView("tournament");
+    try {
+      const recs = await fetchUcookRecs(ingredients); // Ucook backend
+      if (recs.length) setRecs(recs); // swap in backend result
+    } catch {
+      /* backend not running → keep local result, demo still works */
+    }
   };
 
   const handleChoose = (rec: Recommendation) => {

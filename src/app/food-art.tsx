@@ -143,20 +143,47 @@ function PastaArt() {
 function RiceArt() {
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      {[
-        [24,22],[38,18],[52,20],[66,24],[78,32],
-        [18,38],[32,34],[46,32],[60,36],[74,42],
-        [22,54],[36,50],[50,48],[64,52],[76,58],
-        [28,68],[44,66],[60,68],
-      ].map(([cx, cy], i) => {
-        const a = (i * 37) % 180;
-        return (
-          <g key={i} transform={`translate(${cx},${cy}) rotate(${a - 60})`}>
-            <ellipse cx="0" cy="0" rx="6" ry="3" fill="#FAFAF5" stroke="#DDDACF" strokeWidth="0.8" />
-            <ellipse cx="-1" cy="-0.5" rx="2" ry="1" fill="rgba(255,255,255,0.9)" />
-          </g>
-        );
-      })}
+      <defs>
+        <linearGradient id="rcb-ceramic" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#C8BCA8" />
+          <stop offset="42%" stopColor="#F2EAE0" />
+          <stop offset="100%" stopColor="#C0B4A0" />
+        </linearGradient>
+        <radialGradient id="rcb-mound" cx="40%" cy="28%" r="64%">
+          <stop offset="0%" stopColor="#FFFFFF" />
+          <stop offset="58%" stopColor="#F2EDE4" />
+          <stop offset="100%" stopColor="#D8D4C8" />
+        </radialGradient>
+      </defs>
+      {/* Shadow */}
+      <ellipse cx="50" cy="93" rx="28" ry="5" fill="rgba(0,0,0,0.12)" />
+      {/* Bowl body */}
+      <path d="M 14 62 Q 12 80 26 87 Q 38 92 50 92 Q 62 92 74 87 Q 88 80 86 62 Z" fill="url(#rcb-ceramic)" />
+      {/* Bowl body outline */}
+      <path d="M 14 62 Q 12 80 26 87 Q 38 92 50 92 Q 62 92 74 87 Q 88 80 86 62" fill="none" stroke="#9E9080" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Rice mound overflowing above the rim */}
+      <path d="M 20 60 Q 16 40 30 26 Q 40 14 50 12 Q 60 14 70 26 Q 84 40 80 60 Q 66 54 50 52 Q 34 54 20 60 Z" fill="url(#rcb-mound)" />
+      {/* Individual rice grains on the mound surface */}
+      {([
+        [34,32,20],[48,22,5],[62,30,-22],[36,42,28],[54,40,-16],
+        [66,40,24],[26,46,0],[54,26,-15],[44,48,10],[60,46,-8],
+        [50,34,-5],[40,26,15],[58,34,20],
+      ] as [number,number,number][]).map(([cx,cy,r],i) => (
+        <g key={i} transform={`translate(${cx},${cy}) rotate(${r})`}>
+          <ellipse cx="0" cy="0" rx="5.5" ry="2.8" fill="#FAFAF6" stroke="rgba(200,194,175,0.55)" strokeWidth="0.6" />
+          <ellipse cx="-1" cy="-0.5" rx="2" ry="1" fill="rgba(255,255,255,0.88)" />
+        </g>
+      ))}
+      {/* Outer rim ellipse */}
+      <ellipse cx="50" cy="62" rx="36" ry="12" fill="url(#rcb-ceramic)" />
+      {/* Inner rim ring */}
+      <ellipse cx="50" cy="62" rx="30" ry="9" fill="#EDEAD8" stroke="#9E9080" strokeWidth="1.2" />
+      {/* Rim specular highlight */}
+      <path d="M 18 58 Q 36 52 62 56" fill="none" stroke="rgba(255,255,255,0.78)" strokeWidth="3" strokeLinecap="round" />
+      {/* Steam wisps */}
+      <path d="M 38 8 Q 34 4 38 2" fill="none" stroke="rgba(155,145,135,0.52)" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M 50 6 Q 46 2 50 0" fill="none" stroke="rgba(155,145,135,0.50)" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M 62 8 Q 58 4 62 2" fill="none" stroke="rgba(155,145,135,0.52)" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -884,27 +911,52 @@ function NoodlesArt() {
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <radialGradient id="ndl2-body" cx="44%" cy="36%" r="60%">
-          <stop offset="0%" stopColor="#F8E898" />
-          <stop offset="55%" stopColor="#D4A820" />
-          <stop offset="100%" stopColor="#A87010" />
+        {/* Dark ceramic ramen bowl */}
+        <linearGradient id="ndlb-ceramic" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#2C1E08" />
+          <stop offset="42%" stopColor="#5A3C14" />
+          <stop offset="100%" stopColor="#2C1E08" />
+        </linearGradient>
+        {/* Amber broth inside */}
+        <radialGradient id="ndlb-broth" cx="44%" cy="42%" r="56%">
+          <stop offset="0%" stopColor="#C89840" />
+          <stop offset="100%" stopColor="#7A5010" />
+        </radialGradient>
+        {/* Noodle mass */}
+        <radialGradient id="ndlb-noodle" cx="42%" cy="30%" r="62%">
+          <stop offset="0%" stopColor="#FAEAA0" />
+          <stop offset="55%" stopColor="#E0C030" />
+          <stop offset="100%" stopColor="#B08818" />
         </radialGradient>
       </defs>
       {/* Shadow */}
-      <ellipse cx="50" cy="89" rx="34" ry="7" fill="rgba(0,0,0,0.12)" />
-      {/* Noodle mound body */}
-      <path d="M 14 76 Q 12 54 26 38 Q 38 24 50 22 Q 62 24 74 38 Q 88 54 86 76 Q 70 84 50 85 Q 30 84 14 76 Z" fill="url(#ndl2-body)" />
-      {/* Wavy noodle strands — lower section */}
-      <path d="M 18 72 Q 28 62 38 70 Q 48 78 58 68 Q 68 60 78 70" fill="none" stroke="#C8A010" strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M 16 64 Q 26 54 36 62 Q 46 70 56 60 Q 66 52 76 62" fill="none" stroke="#E0BC20" strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M 18 56 Q 28 46 38 54 Q 48 62 58 52 Q 68 44 78 54" fill="none" stroke="#C8A010" strokeWidth="3.5" strokeLinecap="round" />
-      {/* Upper curly mound strands */}
-      <path d="M 22 48 Q 32 38 42 46 Q 52 54 62 44 Q 72 36 80 46" fill="none" stroke="#F0D030" strokeWidth="4" strokeLinecap="round" />
-      <path d="M 26 40 Q 36 30 46 38 Q 56 46 66 36 Q 74 28 80 36" fill="none" stroke="#E0C020" strokeWidth="4" strokeLinecap="round" />
+      <ellipse cx="50" cy="93" rx="28" ry="5" fill="rgba(0,0,0,0.13)" />
+      {/* Bowl body */}
+      <path d="M 14 62 Q 12 80 26 87 Q 38 92 50 92 Q 62 92 74 87 Q 88 80 86 62 Z" fill="url(#ndlb-ceramic)" />
+      {/* Bowl body outline */}
+      <path d="M 14 62 Q 12 80 26 87 Q 38 92 50 92 Q 62 92 74 87 Q 88 80 86 62" fill="none" stroke="#1A1004" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Broth visible inside bowl */}
+      <ellipse cx="50" cy="62" rx="30" ry="9" fill="url(#ndlb-broth)" />
+      {/* Noodle mass mounding above the bowl rim */}
+      <path d="M 20 60 Q 16 40 30 26 Q 40 14 50 12 Q 60 14 70 26 Q 84 40 80 60 Q 66 54 50 52 Q 34 54 20 60 Z" fill="url(#ndlb-noodle)" />
+      {/* Wavy noodle strands drawn across the mound */}
+      <path d="M 22 56 Q 32 46 42 54 Q 52 62 62 52 Q 72 44 80 54" fill="none" stroke="#C8A018" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M 20 50 Q 30 40 40 48 Q 50 56 60 46 Q 70 38 80 48" fill="none" stroke="#E0BC28" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M 22 44 Q 32 34 42 42 Q 52 50 62 40 Q 72 32 80 42" fill="none" stroke="#C8A018" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M 26 38 Q 36 28 46 36 Q 56 44 66 34 Q 74 26 80 34" fill="none" stroke="#EECF28" strokeWidth="4" strokeLinecap="round" />
+      <path d="M 30 30 Q 40 20 50 18 Q 60 20 70 28" fill="none" stroke="#F0D840" strokeWidth="4" strokeLinecap="round" />
       {/* Mound outline */}
-      <path d="M 14 76 Q 12 54 26 38 Q 38 24 50 22 Q 62 24 74 38 Q 88 54 86 76" fill="none" stroke="#8C6810" strokeWidth="1.5" strokeLinecap="round" />
-      {/* Highlight */}
-      <path d="M 30 30 Q 50 22 70 30" fill="none" stroke="rgba(255,255,255,0.52)" strokeWidth="4" strokeLinecap="round" />
+      <path d="M 20 60 Q 16 40 30 26 Q 40 14 50 12 Q 60 14 70 26 Q 84 40 80 60" fill="none" stroke="#8C6810" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Outer rim ellipse (dark ceramic) */}
+      <ellipse cx="50" cy="62" rx="36" ry="12" fill="url(#ndlb-ceramic)" />
+      {/* Inner rim — shows broth colour */}
+      <ellipse cx="50" cy="62" rx="30" ry="9" fill="url(#ndlb-broth)" stroke="#1A1004" strokeWidth="1.2" />
+      {/* Rim highlight */}
+      <path d="M 18 58 Q 36 52 62 56" fill="none" stroke="rgba(255,255,255,0.30)" strokeWidth="3" strokeLinecap="round" />
+      {/* Steam wisps */}
+      <path d="M 38 8 Q 34 4 38 2" fill="none" stroke="rgba(200,170,120,0.55)" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M 50 6 Q 46 2 50 0" fill="none" stroke="rgba(200,170,120,0.52)" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M 62 8 Q 58 4 62 2" fill="none" stroke="rgba(200,170,120,0.55)" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }
